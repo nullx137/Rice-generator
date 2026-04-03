@@ -25,7 +25,7 @@
 
 ```bash
 git clone https://github.com/nullx137/Rice-generator
-cd rice-generator
+cd Rice-generator
 ```
 
 ### 2. Установка зависимостей
