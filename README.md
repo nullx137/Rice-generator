@@ -24,7 +24,7 @@
 ### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/yourusername/rice-generator.git
+git clone https://github.com/nullx137/Rice-generator
 cd rice-generator
 ```
 
@@ -240,13 +240,6 @@ python -m rice_generator screenshot.png \
 - Требуется ручная проверка конфигов перед применением
 - Модель может не распознать кастомные шрифты
 
-## 🤝 Вклад
-
-1. Fork репозиторий
-2. Создайте ветку (`git checkout -b feature/amazing-feature`)
-3. Commit изменения (`git commit -m 'Add amazing feature'`)
-4. Push в ветку (`git push origin feature/amazing-feature`)
-5. Откройте Pull Request
 
 
 
