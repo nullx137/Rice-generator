@@ -1,0 +1,412 @@
+"""Генератор конфигов с раздельными запросами для каждого компонента."""
+
+import json
+import re
+from pathlib import Path
+from typing import Optional
+
+from .openrouter_client import OpenRouterClient
+from .config import settings
+
+
+class SeparateGenerator:
+    """Генератор с раздельными запросами для Waybar и Kitty."""
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
+        """
+        Инициализация генератора.
+
+        Args:
+            api_key: API ключ OpenRouter.
+            model: Модель для анализа.
+        """
+        self.api_key = api_key or settings.OPENROUTER_API_KEY
+        self.model = model or settings.MODEL
+
+    def analyze_colors(
+        self,
+        screenshot_path: str | Path,
+    ) -> dict:
+        """
+        Анализирует цвета со скриншота для ручной настройки Hyprland.
+
+        Args:
+            screenshot_path: Путь к скриншоту.
+
+        Returns:
+            Словарь с распознанными цветами и параметрами.
+        """
+        prompt = self._build_color_analysis_prompt()
+
+        with OpenRouterClient(self.api_key, self.model) as client:
+            response = client.analyze_image_with_prompt(
+                screenshot_path=screenshot_path,
+                prompt=prompt,
+                max_tokens=2000,
+            )
+
+        return self._extract_color_json(response)
+
+    def generate_hyprland(
+        self,
+        screenshot_path: str | Path,
+        template: str,
+    ) -> str:
+        """
+        Генерирует конфиг Hyprland на основе шаблона.
+
+        Args:
+            screenshot_path: Путь к скриншоту.
+            template: Шаблон конфига.
+
+        Returns:
+            Сгенерированный конфиг Hyprland.
+        """
+        prompt = self._build_hyprland_prompt(template)
+
+        with OpenRouterClient(self.api_key, self.model) as client:
+            response = client.analyze_image_with_prompt(
+                screenshot_path=screenshot_path,
+                prompt=prompt,
+                max_tokens=8000,
+            )
+
+        return self._extract_code_block(response, "hyprland")
+
+    def generate_waybar(
+        self,
+        screenshot_path: str | Path,
+        config_template: str,
+        style_template: str,
+    ) -> tuple[str, str]:
+        """
+        Генерирует конфиги Waybar (config + style).
+
+        Args:
+            screenshot_path: Путь к скриншоту.
+            config_template: Шаблон config.json.
+            style_template: Шаблон style.css.
+
+        Returns:
+            Кортеж (config.json, style.css).
+        """
+        prompt = self._build_waybar_prompt(config_template, style_template)
+
+        with OpenRouterClient(self.api_key, self.model) as client:
+            response = client.analyze_image_with_prompt(
+                screenshot_path=screenshot_path,
+                prompt=prompt,
+                max_tokens=6000,
+            )
+
+        config = self._extract_json_config(response)
+        style = self._extract_css_style(response)
+
+        return config, style
+
+    def generate_kitty(
+        self,
+        screenshot_path: str | Path,
+        template: str,
+    ) -> str:
+        """
+        Генерирует конфиг Kitty.
+
+        Args:
+            screenshot_path: Путь к скриншоту.
+            template: Шаблон конфига.
+
+        Returns:
+            Сгенерированный конфиг Kitty.
+        """
+        prompt = self._build_kitty_prompt(template)
+
+        with OpenRouterClient(self.api_key, self.model) as client:
+            response = client.analyze_image_with_prompt(
+                screenshot_path=screenshot_path,
+                prompt=prompt,
+                max_tokens=3000,
+            )
+
+        return self._extract_code_block(response, "kitty")
+
+    def _build_hyprland_prompt(self, template: str) -> str:
+        """Создаёт промпт для Hyprland — только замена переменных."""
+        return f"""Ты эксперт по Hyprland. Проанализируй скриншот и модифицируй шаблон.
+
+## ⚠️ КРИТИЧЕСКИ ВАЖНО — ПРОЧИТАЙ ВНИМАТЕЛЬНО:
+
+Твоя задача — ТОЛЬКО заменить переменные в шаблоне на основе скриншота.
+НЕ добавляй новый код, НЕ удаляй существующий, НЕ меняй структуру.
+
+## Что нужно распознать со скриншота и заменить:
+
+1. **Gaps (отступы):**
+   - gaps_in — внутренние отступы между окнами
+   - gaps_out — внешние отступы от краёв экрана
+
+2. **Цвета бордюров (borders):**
+   - col.active_border — цвет активной рамки (rgba или #hex)
+   - col.inactive_border — цвет неактивной рамки
+
+3. **Прозрачность (opacity):**
+   - active_opacity — прозрачность активного окна (0.0 - 1.0)
+   - inactive_opacity — прозрачность неактивного окна
+
+4. **Скругления (rounding):**
+   - rounding — радиус скругления углов окон
+
+5. **Тени (shadow):**
+   - shadow.enabled — true/false
+   - shadow.range — размер тени
+   - shadow.color — цвет тени
+
+6. **Блюр (blur):**
+   - blur.enabled — true/false
+   - blur.size — размер блюра
+   - blur.passes — количество проходов
+
+7. **Толщина бордюра:**
+   - border_size — толщина рамок окон
+
+## Шаблон для модификации:
+{template}
+
+## Формат ответа:
+Верни ТОЛЬКО полный код Hyprland конфига в блоке:
+```hyprland
+# весь конфиг с заменёнными переменными
+```
+
+## ⚠️ ЗАПРЕЩЕНО:
+- Добавлять новые секции
+- Удалять существующие секции
+- Менять binds (горячие клавиши)
+- Менять input настройки
+- Менять monitor настройки
+- Добавлять комментарии
+
+## ✅ РАЗРЕШЕНО:
+- Заменить gaps_in, gaps_out
+- Заменить col.active_border, col.inactive_border
+- Заменить active_opacity, inactive_opacity
+- Заменить rounding
+- Заменить shadow параметры
+- Заменить blur параметры
+- Заменить border_size
+"""
+
+    def _build_waybar_prompt(
+        self, config_template: str, style_template: str
+    ) -> str:
+        """Создаёт промпт для Waybar."""
+        return f"""Ты эксперт по Waybar. Проанализируй скриншот и создай два файла.
+
+## КРИТИЧЕСКИ ВАЖНО - ВНИМАТЕЛЬНО ИЗУЧИ СКРИНШОТ:
+
+### 1. ТИП WAYBAR (определи точно):
+**Прозрачный или сплошной:**
+- Если фон бара прозрачный/полупрозрачный → используй rgba с прозрачностью
+- Если сплошной цвет → используй solid color
+
+**Цельный или раздельный:**
+- Цельный (единая полоса) → один window#waybar на весь экран
+- Раздельный (модули отдельно) → каждый модуль в отдельном блоке с margin
+
+### 2. РАСПОЛОЖЕНИЕ МОДУЛЕЙ (определи точно):
+**Где какие модули находятся:**
+- modules-left: какие модули СЛЕВА (workspaces, tray, и т.д.)
+- modules-center: какие модули ПО ЦЕНТРУ (window, clock, media)
+- modules-right: какие модули СПРАВА (pulseaudio, network, battery, clock)
+
+**Визуально определи порядок:**
+- Посмотри на скриншот слева направо
+- Запиши модули в том порядке, в котором они видны
+
+### 3. СТИЛЬ (распознай детали):
+- Высота бара (обычно 30-40px)
+- Закругления (border-radius)
+- Отступы между модулями (margin, padding)
+- Градиенты или сплошной цвет
+- Тени у бара
+
+## КРИТИЧЕСКИ ВАЖНО:
+- Пиши ТОЛЬКО чистый код БЕЗ комментариев
+- В JSON не используй // комментарии
+- В CSS минимизируй комментарии
+- Верни ПОЛНЫЕ файлы без сокращений
+
+## 1. config.json (структура):
+- layer: "top" или "bottom"
+- position: "top" или "bottom"
+- height: высота бара (обычно 30-40)
+- modules-left: [список модулей слева]
+- modules-center: [список модулей по центру]
+- modules-right: [список модулей справа]
+- Настройки каждого модуля
+
+## 2. style.css (внешний вид):
+- background: цвет/прозрачность фона
+- color: цвет текста
+- border-radius: скругления
+- padding/margin: отступы
+- font-family: шрифт (JetBrainsMono Nerd Font)
+- font-size: размер шрифта
+
+## Шаблоны:
+### config.json:
+{config_template}
+
+### style.css:
+{style_template}
+
+## Формат ответа:
+```json
+{{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "modules-left": ["hyprland/workspaces", "tray"],
+  "modules-center": ["hyprland/window"],
+  "modules-right": ["pulseaudio", "network", "battery", "clock"],
+  ...
+}}
+```
+
+```css
+* {{
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 14px;
+}}
+
+window#waybar {{
+    background: rgba(30, 30, 46, 0.8); /* или solid цвет */
+    border-radius: 10px;
+}}
+...
+```
+"""
+
+    def _build_kitty_prompt(self, template: str) -> str:
+        """Создаёт промпт для Kitty."""
+        return f"""Ты эксперт по Kitty. Проанализируй скриншот и создай конфиг.
+
+## КРИТИЧЕСКИ ВАЖНО:
+- Пиши ТОЛЬКО чистый код БЕЗ комментариев
+- Не используй # комментарии в конфиге
+- Верни ПОЛНЫЙ конфиг без сокращений
+
+## Распознай со скриншота:
+- Цветовую схему (foreground, background, color0-15)
+- Шрифт и размер
+- Отступы (window_padding_width)
+- Прозрачность (background_opacity)
+- Стиль табов (если видны)
+
+## Структура конфига:
+- shell_integration
+- font_family, font_size
+- foreground, background
+- color0 - color15
+- selection_foreground, selection_background
+- cursor, cursor_text_color
+- window_padding_width
+- tab_bar_style (если есть табы)
+- map = (горячие клавиши - стандартные)
+
+## Шаблон:
+{template}
+
+## Формат ответа:
+Верни ТОЛЬКО код в блоке:
+```kitty
+shell_integration no-rc
+font_family JetBrainsMono Nerd Font
+font_size 12.0
+foreground #c0caf5
+background #1a1b26
+color0 #15161e
+color1 #f7768e
+...
+```
+"""
+
+    def _extract_code_block(
+        self, text: str, lang: Optional[str] = None
+    ) -> str:
+        """Извлекает код из markdown блока."""
+        patterns = []
+        if lang:
+            patterns.append(rf"```{lang}\s*(.*?)\s*```")
+        patterns.extend(
+            [
+                r"```hyprland\s*(.*?)\s*```",
+                r"```kitty\s*(.*?)\s*```",
+                r"```\s*(.*?)\s*```",
+            ]
+        )
+
+        for pattern in patterns:
+            match = re.search(pattern, text, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+
+        # Если не найдено, возвращаем весь текст
+        return text.strip()
+
+    def _extract_color_json(self, text: str) -> dict:
+        """Извлекает JSON с цветами и параметрами."""
+        match = re.search(r"```(?:json)?\s*({.*?})\s*```", text, re.DOTALL)
+        if match:
+            json_str = match.group(1)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+        
+        # Если не найдено, пробуем найти JSON без markdown блока
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                pass
+        
+        # Возвращаем пустой словарь с подсказками
+        return {
+            "error": "Не удалось распознать цвета",
+            "manual_setup": True,
+            "variables": {
+                "gaps_in": 5,
+                "gaps_out": 20,
+                "active_border": "rgba(33ccffaa)",
+                "inactive_border": "rgba(595959aa)",
+                "active_opacity": 1.0,
+                "inactive_opacity": 0.9,
+                "rounding": 10,
+            }
+        }
+
+    def _extract_json_config(self, text: str) -> str:
+        """Извлекает JSON конфиг."""
+        match = re.search(r"```(?:json)?\s*({.*?})\s*```", text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text.strip()
+
+    def _extract_css_style(self, text: str) -> str:
+        """Извлекает CSS стиль."""
+        match = re.search(r"```(?:css)?\s*(/\*.*?\*/.*?)\s*```", text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+
+        # Альтернативный паттерн
+        match = re.search(r"```css\s*(.*?)\s*```", text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+
+        return text.strip()
