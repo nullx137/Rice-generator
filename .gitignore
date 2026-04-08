@@ -35,7 +35,6 @@ Thumbs.db
 output/
 generated_configs/
 *.log
-screenshot.png
 *.png
 !README.md
 

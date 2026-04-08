@@ -83,6 +83,13 @@ def main():
     )
 
     parser.add_argument(
+        "--validate",
+        choices=["auto", "yes", "no"],
+        default="auto",
+        help="Режим проверки: auto (авто), yes (всегда), no (выключено)",
+    )
+
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -131,6 +138,27 @@ def main():
             output_dir=args.output,
         )
 
+        # Проверка конфигов
+        validate_mode = args.validate
+        if validate_mode == "yes":
+            print("\n🔍 Запуск ИИ-проверки конфигов...")
+            from .validator import AIValidator
+            ai_validator = AIValidator(api_key=args.api_key, model=args.model)
+            results = ai_validator.validate_and_fix(
+                screenshot_path=args.screenshot,
+                output_dir=args.output,
+                max_iterations=2,
+            )
+            if results:
+                print(f"\n✅ Исправлено файлов: {len(results)}")
+            else:
+                print("\n✅ Все конфиги соответствуют скриншоту!")
+        elif validate_mode == "no":
+            pass  # Проверка выключена
+        else:  # auto
+            # Авто-режим: без проверки (быстрая генерация)
+            pass
+
         print("=" * 40)
         print("📁 Сгенерированные файлы:")
         for name, path in paths.items():
@@ -138,8 +166,8 @@ def main():
 
         print("\n▶️  Для применения конфигов выполните:")
         print(f"   cd {args.output}")
-        print("   chmod +x autoinstaller.sh")
-        print("   ./autoinstaller.sh")
+        print("   chmod +x installer.sh")
+        print("   ./installer.sh")
 
         return 0
 

@@ -1,12 +1,94 @@
 """Главный модуль для генерации райсов."""
 
 import json
+import sys
+import time
 from pathlib import Path
 
 from .openrouter_client import OpenRouterClient
 from .config_parser import ConfigParser, ConfigGenerator
 from .separate_generator import SeparateGenerator
 from .config import settings
+
+
+# ANSI цвета
+BLUE = "\033[94m"
+YELLOW = "\033[93m"
+GREEN = "\033[92m"
+MAGENTA = "\033[95m"
+CYAN = "\033[96m"
+RED = "\033[91m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+
+# Анимация пульсирующей звёздочки
+SPINNER_FRAMES = ["✦", "✧", "✦", "◇"]
+
+
+class PulseSpinner:
+    """Пульсирующий спиннер в стиле cloud code CLI."""
+
+    def __init__(self):
+        self._running = False
+        self._thread = None
+
+    def start(self, text: str, color: str = BLUE):
+        """Запуск спиннера."""
+        import threading
+
+        self._running = True
+        self._text = text
+        self._color = color
+        self._frame = 0
+
+        def _spin():
+            while self._running:
+                frame = SPINNER_FRAMES[self._frame % len(SPINNER_FRAMES)]
+                # Пульсация: яркий → тусклый
+                if self._frame % 2 == 0:
+                    print(f"\r{color}{BOLD}{frame}{RESET} {text}", end="", flush=True)
+                else:
+                    print(f"\r{color}{DIM}{frame}{RESET} {text}", end="", flush=True)
+                self._frame += 1
+                time.sleep(0.3)
+
+        self._thread = threading.Thread(target=_spin, daemon=True)
+        self._thread.start()
+
+    def stop(self, success: bool = True):
+        """Остановка спиннера."""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=1)
+        icon = "✦"
+        if success:
+            print(f"\r{GREEN}{BOLD}{icon}{RESET} {self._text} {GREEN}готово{RESET}")
+        else:
+            print(f"\r{RED}{BOLD}✗{RESET} {self._text} {RED}ошибка{RESET}")
+
+
+# Глобальный спиннер
+spinner = PulseSpinner()
+
+
+class PulsePrinter:
+    """Вывод с пульсирующими звёздочками в стиле cloud code CLI."""
+
+    @staticmethod
+    def pulse(text: str, color: str = BLUE):
+        """Пульсирующий текст с анимацией."""
+        print(f"{BOLD}{color}✦{RESET} {text}")
+
+    @staticmethod
+    def done(text: str):
+        """Готово."""
+        print(f"{BOLD}{GREEN}✦{RESET} {text}")
+
+    @staticmethod
+    def error(text: str):
+        """Ошибка."""
+        print(f"{BOLD}{RED}✗{RESET} {text}")
 
 
 class RiceGenerator:
@@ -69,6 +151,9 @@ class RiceGenerator:
             hyprland_template = (self.templates_dir / "hyprland.conf").read_text()
 
         waybar_template = (self.templates_dir / "waybar.json").read_text()
+        waybar_style_template = (self.templates_dir / "waybar_style.css").read_text()
+        wofi_template = (self.templates_dir / "wofi_config").read_text()
+        wofi_style_template = (self.templates_dir / "wofi_style.css").read_text()
         kitty_template = (self.templates_dir / "kitty.conf").read_text()
 
         if self.separate:
@@ -80,26 +165,69 @@ class RiceGenerator:
             generator = SeparateGenerator(self.api_key, self.model)
 
             # 1. Генерация Hyprland
-            print("🔵 [1/4] Генерация Hyprland...")
-            hyprland_conf = generator.generate_hyprland(
-                screenshot_path=screenshot_path,
-                template=hyprland_template,
-            )
+            spinner.start("Генерация Hyprland...", BLUE)
+            try:
+                hyprland_conf = generator.generate_hyprland(
+                    screenshot_path=screenshot_path,
+                    template=hyprland_template,
+                )
+                spinner.stop(success=True)
+            except Exception:
+                spinner.stop(success=False)
+                raise
+
+            # Задержка между запросами
+            if settings.REQUEST_DELAY > 0:
+                print(f"{DIM}   ⏳ Ожидание {settings.REQUEST_DELAY}с...{RESET}")
+                time.sleep(settings.REQUEST_DELAY)
 
             # 2. Генерация Waybar
-            print("🟡 [2/4] Генерация Waybar...")
-            waybar_config, waybar_style = generator.generate_waybar(
-                screenshot_path=screenshot_path,
-                config_template=waybar_template,
-                style_template=self._get_waybar_style_template(),
-            )
+            spinner.start("Генерация Waybar...", YELLOW)
+            try:
+                waybar_config, waybar_style = generator.generate_waybar(
+                    screenshot_path=screenshot_path,
+                    config_template=waybar_template,
+                    style_template=waybar_style_template,
+                )
+                spinner.stop(success=True)
+            except Exception:
+                spinner.stop(success=False)
+                raise
 
-            # 3. Генерация Kitty
-            print("🟢 [3/4] Генерация Kitty...")
-            kitty_conf = generator.generate_kitty(
-                screenshot_path=screenshot_path,
-                template=kitty_template,
-            )
+            # Задержка между запросами
+            if settings.REQUEST_DELAY > 0:
+                print(f"{DIM}   ⏳ Ожидание {settings.REQUEST_DELAY}с...{RESET}")
+                time.sleep(settings.REQUEST_DELAY)
+
+            # 3. Генерация Wofi
+            spinner.start("Генерация Wofi...", MAGENTA)
+            try:
+                wofi_config, wofi_style = generator.generate_wofi(
+                    screenshot_path=screenshot_path,
+                    config_template=wofi_template,
+                    style_template=wofi_style_template,
+                )
+                spinner.stop(success=True)
+            except Exception:
+                spinner.stop(success=False)
+                raise
+
+            # Задержка между запросами
+            if settings.REQUEST_DELAY > 0:
+                print(f"{DIM}   ⏳ Ожидание {settings.REQUEST_DELAY}с...{RESET}")
+                time.sleep(settings.REQUEST_DELAY)
+
+            # 4. Генерация Kitty
+            spinner.start("Генерация Kitty...", GREEN)
+            try:
+                kitty_conf = generator.generate_kitty(
+                    screenshot_path=screenshot_path,
+                    template=kitty_template,
+                )
+                spinner.stop(success=True)
+            except Exception:
+                spinner.stop(success=False)
+                raise
 
             print("=" * 40)
             print("📝 Обработка результатов...")
@@ -111,6 +239,8 @@ class RiceGenerator:
                 hyprland_conf=hyprland_conf,
                 waybar_conf=waybar_style,
                 waybar_config=waybar_config,
+                wofi_conf=wofi_style,
+                wofi_config=wofi_config,
                 kitty_conf=kitty_conf,
                 color_scheme={},
                 fonts={},

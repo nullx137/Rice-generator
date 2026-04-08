@@ -14,6 +14,8 @@ class GeneratedConfig:
     hyprland_conf: str
     waybar_conf: str
     waybar_config: str
+    wofi_conf: str
+    wofi_config: str
     kitty_conf: str
     color_scheme: dict
     fonts: dict
@@ -171,6 +173,12 @@ class ConfigGenerator:
         paths["waybar_config"] = self._save_file(
             "waybar_config.json", self.config.waybar_config
         )
+        paths["wofi_style"] = self._save_file(
+            "wofi_style.css", self.config.wofi_conf
+        )
+        paths["wofi_config"] = self._save_file(
+            "wofi_config", self.config.wofi_config
+        )
         paths["kitty"] = self._save_file("kitty.conf", self.config.kitty_conf)
 
         # Генерируем скрипты
@@ -211,13 +219,13 @@ class ConfigGenerator:
 
     def _generate_installer(self) -> Path:
         """
-        Генерирует скрипт autoinstaller.sh.
+        Генерирует скрипт installer.sh.
 
         Returns:
             Путь к скрипту установщика.
         """
         script = '''#!/bin/bash
-# Autoinstaller для rice конфига
+# Installer для rice конфига
 # Сгенерировано rice-generator
 
 set -e
@@ -279,12 +287,18 @@ cp "$SCRIPT_DIR/waybar_config.json" "$HOME/.config/waybar/config"
 cp "$SCRIPT_DIR/waybar_style.css" "$HOME/.config/waybar/style.css"
 echo "  ✓ Waybar конфиги установлены"
 
-echo -e "${YELLOW}[4/5] Установка конфигов Kitty...${NC}"
+echo -e "${YELLOW}[4/6] Установка конфигов Wofi...${NC}"
+mkdir -p "$HOME/.config/wofi"
+cp "$SCRIPT_DIR/wofi_config" "$HOME/.config/wofi/config"
+cp "$SCRIPT_DIR/wofi_style.css" "$HOME/.config/wofi/style.css"
+echo "  ✓ Wofi конфиги установлены"
+
+echo -e "${YELLOW}[5/6] Установка конфигов Kitty...${NC}"
 mkdir -p "$HOME/.config/kitty"
 cp "$SCRIPT_DIR/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 echo "  ✓ Kitty конфиг установлен"
 
-echo -e "${YELLOW}[5/5] Применение изменений...${NC}"
+echo -e "${YELLOW}[6/6] Применение изменений...${NC}"
 
 # Перезагрузка Waybar
 if pgrep -x "waybar" > /dev/null; then
@@ -308,7 +322,7 @@ echo "  $BACKUP_DIR/restore.sh"
 echo ""
 echo "Или запустите uninstaller.sh из этой директории"
 '''
-        return self._save_file("autoinstaller.sh", script)
+        return self._save_file("installer.sh", script)
 
     def _generate_uninstaller(self) -> Path:
         """
@@ -351,7 +365,7 @@ if [ -f "$HOME/.config/hypr/hyprland.conf" ]; then
     echo "  ✓ hyprland.conf удалён"
 fi
 
-echo -e "${YELLOW}[2/3] Удаление конфигов Waybar...${NC}"
+echo -e "${YELLOW}[2/4] Удаление конфигов Waybar...${NC}"
 if [ -f "$HOME/.config/waybar/config" ]; then
     rm "$HOME/.config/waybar/config"
     echo "  ✓ waybar/config удалён"
@@ -361,7 +375,17 @@ if [ -f "$HOME/.config/waybar/style.css" ]; then
     echo "  ✓ waybar/style.css удалён"
 fi
 
-echo -e "${YELLOW}[3/3] Удаление конфигов Kitty...${NC}"
+echo -e "${YELLOW}[3/4] Удаление конфигов Wofi...${NC}"
+if [ -f "$HOME/.config/wofi/config" ]; then
+    rm "$HOME/.config/wofi/config"
+    echo "  ✓ wofi/config удалён"
+fi
+if [ -f "$HOME/.config/wofi/style.css" ]; then
+    rm "$HOME/.config/wofi/style.css"
+    echo "  ✓ wofi/style.css удалён"
+fi
+
+echo -e "${YELLOW}[4/4] Удаление конфигов Kitty...${NC}"
 if [ -f "$HOME/.config/kitty/kitty.conf" ]; then
     rm "$HOME/.config/kitty/kitty.conf"
     echo "  ✓ kitty.conf удалён"

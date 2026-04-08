@@ -2,13 +2,11 @@
 
 Генерация конфигов для **Hyprland**, **Waybar** и **Kitty** на основе скриншотов с использованием мультимодальной ИИ-модели.
 
-![Preview](screenshot.png)
-
 ## ✨ Возможности
 
 - 📸 **Анализ скриншотов** — распознавание цветовой схемы, шрифтов, компоновки
 - 🎨 **Генерация конфигов** — создание конфигурационных файлов на основе анализа
-- 🔧 **Autoinstaller** — автоматическая установка конфигов с бэкапом
+- 🔧 **Installer** — автоматическая установка конфигов с бэкапом
 - ↩️ **Uninstaller** — откат изменений и восстановление из бэкапа
 - 🤖 **AI-powered** — использует Google Gemini 3 через OpenRouter
 - 📝 **Свой конфиг Hyprland** — используйте свой конфиг как шаблон
@@ -61,7 +59,7 @@ python -m rice_generator screenshot.png --api-key your_key -m google/gemini-3-fl
 ## 📖 Команды CLI
 
 ```
-usage: rice-generator [-h] [-o OUTPUT] [--api-key API_KEY] [-m MODEL] [-t TEMPLATES] [-H HYPRLAND_CONFIG] [-v] [--version]
+usage: rice-generator [-h] [-o OUTPUT] [--api-key API_KEY] [-m MODEL] [-t TEMPLATES] [-H HYPRLAND_CONFIG] [--validate MODE] [-v] [--version]
 
 positional arguments:
   screenshot            Путь к скриншоту для анализа
@@ -77,10 +75,56 @@ options:
                         Директория с шаблонами
   -H HYPRLAND_CONFIG, --hyprland-config HYPRLAND_CONFIG
                         Путь к вашему hyprland.conf (вместо встроенного шаблона)
+  --validate MODE       Режим проверки: auto, yes, no
   --list-models         Показать список доступных моделей
   -v, --verbose         Подробный вывод
   --version             Версия
 ```
+
+## 🔍 Режимы проверки
+
+После генерации конфигов ИИ может проверить их на соответствие скриншоту:
+
+| Режим | Описание |
+|-------|----------|
+| `auto` | Без проверки (быстрая генерация, по умолчанию) |
+| `yes` | ИИ-проверка + авто-исправление расхождений |
+| `no` | Без проверки |
+
+**Примеры:**
+
+```bash
+# Обычная генерация (без проверки)
+python -m rice_generator screenshot.png -o ./output
+
+# С ИИ-проверкой и исправлением
+python -m rice_generator screenshot.png -o ./output --validate yes
+
+# Без проверки
+python -m rice_generator screenshot.png -o ./output --validate no
+```
+
+**Что проверяет ИИ:**
+
+### Hyprland:
+- ✅ gaps_in / gaps_out — совпадают ли отступы
+- ✅ col.active_border — цвет рамки
+- ✅ rounding — скругления
+- ✅ active_opacity — прозрачность
+- ✅ shadow / blur — эффекты
+
+### Waybar:
+- ✅ modules-left/center/right — правильные модули
+- ✅ Прозрачность фона
+- ✅ Высота и скругления
+- ✅ Расположение модулей
+
+### Kitty:
+- ✅ Цветовая схема
+- ✅ Шрифт и размер
+- ✅ Отступы
+
+**Если найдены расхождения — ИИ автоматически исправит конфиги!**
 
 ## 📁 Структура проекта
 
@@ -119,7 +163,7 @@ rice-generator/
    - **Hyprland** — модифицирует шаблон (заменяет gaps, цвета, opacity, rounding, shadow, blur)
    - **Waybar** — создаётся `config.json` и `style.css`
    - **Kitty** — создаётся `kitty.conf` с цветовой схемой
-4. **Создание скриптов** — генерируются `autoinstaller.sh` и `uninstaller.sh`
+4. **Создание скриптов** — генерируются `installer.sh` и `uninstaller.sh`
 
 ## 📦 Выходные файлы
 
@@ -132,7 +176,7 @@ output/
 ├── waybar_style.css      # Стили Waybar
 ├── kitty.conf            # Конфиг Kitty
 ├── color_scheme.json     # Информация о цветовой схеме
-├── autoinstaller.sh      # Скрипт установки
+├── installer.sh          # Скрипт установки
 └── uninstaller.sh        # Скрипт отката
 ```
 
@@ -140,8 +184,8 @@ output/
 
 ```bash
 cd output/
-chmod +x autoinstaller.sh
-./autoinstaller.sh
+chmod +x installer.sh
+./installer.sh
 ```
 
 Скрипт:

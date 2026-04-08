@@ -6,6 +6,7 @@ from .main import RiceGenerator
 from .config_parser import ConfigParser, ConfigGenerator, GeneratedConfig
 from .openrouter_client import OpenRouterClient
 from .separate_generator import SeparateGenerator
+from .validator import AIValidator
 from .config import settings
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "GeneratedConfig",
     "OpenRouterClient",
     "SeparateGenerator",
+    "AIValidator",
     "settings",
 ]

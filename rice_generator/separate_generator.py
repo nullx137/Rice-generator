@@ -2,6 +2,7 @@
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -72,7 +73,7 @@ class SeparateGenerator:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
-                max_tokens=8000,
+                max_tokens=settings.HYPRLAND_MAX_TOKENS,
             )
 
         return self._extract_code_block(response, "hyprland")
@@ -100,11 +101,42 @@ class SeparateGenerator:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
-                max_tokens=6000,
+                max_tokens=settings.WAYBAR_MAX_TOKENS,
             )
 
         config = self._extract_json_config(response)
         style = self._extract_css_style(response)
+
+        return config, style
+
+    def generate_wofi(
+        self,
+        screenshot_path: str | Path,
+        config_template: str,
+        style_template: str,
+    ) -> tuple[str, str]:
+        """
+        Генерирует конфиги Wofi (config + style).
+
+        Args:
+            screenshot_path: Путь к скриншоту.
+            config_template: Шаблон wofi_config.
+            style_template: Шаблон wofi_style.css.
+
+        Returns:
+            Кортеж (wofi_config, wofi_style.css).
+        """
+        prompt = self._build_wofi_prompt(config_template, style_template)
+
+        with OpenRouterClient(self.api_key, self.model) as client:
+            response = client.analyze_image_with_prompt(
+                screenshot_path=screenshot_path,
+                prompt=prompt,
+                max_tokens=settings.WAYBAR_MAX_TOKENS,  # 6000
+            )
+
+        config = self._extract_wofi_config(response)
+        style = self._extract_wofi_style(response)
 
         return config, style
 
@@ -129,7 +161,7 @@ class SeparateGenerator:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
-                max_tokens=3000,
+                max_tokens=settings.KITTY_MAX_TOKENS,
             )
 
         return self._extract_code_block(response, "kitty")
@@ -334,6 +366,87 @@ color1 #f7768e
 ...
 ```
 """
+
+    def _build_wofi_prompt(
+        self, config_template: str, style_template: str
+    ) -> str:
+        """Создаёт промпт для Wofi."""
+        return f"""Ты эксперт по Wofi (launcher для Wayland). Проанализируй скриншот и создай два файла.
+
+## КРИТИЧЕСКИ ВАЖНО — ВНИМАТЕЛЬНО ИЗУЧИ СКРИНШОТ:
+
+### 1. РАЗМЕР И ПОЗИЦИЯ (определи точно):
+- width — ширина окна (процент или px)
+- height — высота окна (процент или px)
+- location — позиция на экране (center, top, bottom, и т.д.)
+
+### 2. ЦВЕТА (распознай со скриншота):
+- background — цвет фона окна
+- text color — цвет текста
+- border color — цвет рамки
+- selected background — цвет выделенного элемента
+- selected text — цвет текста выделенного элемента
+
+### 3. СТИЛЬ (распознай детали):
+- border — толщина и стиль рамки (2px solid, и т.д.)
+- font-family — шрифт
+- border-radius — скругления углов
+- padding — отступы внутри элементов
+- margin — внешние отступы
+
+### 4. ПАРАМЕТРЫ (определи визуально):
+- allow_images — true/false (есть ли иконки у приложений)
+- image_size — размер иконок
+- show — режим (drun, run, window)
+- prompt — текст подсказки
+
+## ШАБЛОНЫ:
+### wofi_config:
+{config_template}
+
+### wofi_style.css:
+{style_template}
+
+## Формат ответа:
+```config
+mode=drun
+width=30%
+height=40%
+location=center
+show=drun
+...
+```
+
+```css
+window {{
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+    ...
+}}
+#input {{
+    ...
+}}
+...
+```
+"""
+
+    def _extract_wofi_config(self, text: str) -> str:
+        """Извлекает wofi_config из ответа."""
+        match = re.search(r"```config\s*(.*?)\s*```", text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        # Альтернативный поиск
+        match = re.search(r"```wofi_config\s*(.*?)\s*```", text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text.strip()
+
+    def _extract_wofi_style(self, text: str) -> str:
+        """Извлекает wofi_style.css из ответа."""
+        match = re.search(r"```css\s*(.*?)\s*```", text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text.strip()
 
     def _extract_code_block(
         self, text: str, lang: Optional[str] = None

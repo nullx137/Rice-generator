@@ -29,6 +29,18 @@ class Settings:
     # === Лимиты токенов ===
     MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "16384"))
 
+    # Лимиты для генерации
+    HYPRLAND_MAX_TOKENS: int = int(os.getenv("HYPRLAND_MAX_TOKENS", "8000"))
+    WAYBAR_MAX_TOKENS: int = int(os.getenv("WAYBAR_MAX_TOKENS", "6000"))
+    KITTY_MAX_TOKENS: int = int(os.getenv("KITTY_MAX_TOKENS", "3000"))
+
+    # Лимиты для ИИ-валидации
+    VALIDATE_ANALYSIS_TOKENS: int = int(os.getenv("VALIDATE_ANALYSIS_TOKENS", "4000"))
+    VALIDATE_FIX_TOKENS: int = int(os.getenv("VALIDATE_FIX_TOKENS", "8000"))
+
+    # Задержка между запросами (секунды)
+    REQUEST_DELAY: int = int(os.getenv("REQUEST_DELAY", "10"))
+
     # === Пути ===
     BASE_DIR: Path = Path(__file__).parent.parent
     TEMPLATES_DIR: Path = BASE_DIR / "rice_generator" / "templates"
