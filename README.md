@@ -1,6 +1,6 @@
 # 🚀 Rice Generator
 
-Генерация конфигов для **Hyprland**, **Waybar** и **Kitty** на основе скриншотов с использованием мультимодальной ИИ-модели.
+Генерация конфигов для **Hyprland**, **Waybar**, **Wofi** и **Kitty** на основе скриншотов с использованием мультимодальной ИИ-модели.
 
 ## ✨ Возможности
 
@@ -10,12 +10,13 @@
 - ↩️ **Uninstaller** — откат изменений и восстановление из бэкапа
 - 🤖 **AI-powered** — использует Google Gemini 3 через OpenRouter
 - 📝 **Свой конфиг Hyprland** — используйте свой конфиг как шаблон
+- 🚀 **Wofi Launcher** — генерация конфига для лаунчера приложений
 
 ## 📋 Требования
 
 - Python 3.10+
 - API ключ OpenRouter
-- Установленные Hyprland, Waybar, Kitty (для применения конфигов)
+- Установленные Hyprland, Waybar, Wofi, Kitty (для применения конфигов)
 
 ## 🚀 Быстрый старт
 
@@ -76,7 +77,6 @@ options:
   -H HYPRLAND_CONFIG, --hyprland-config HYPRLAND_CONFIG
                         Путь к вашему hyprland.conf (вместо встроенного шаблона)
   --validate MODE       Режим проверки: auto, yes, no
-  --list-models         Показать список доступных моделей
   -v, --verbose         Подробный вывод
   --version             Версия
 ```
@@ -119,6 +119,12 @@ python -m rice_generator screenshot.png -o ./output --validate no
 - ✅ Высота и скругления
 - ✅ Расположение модулей
 
+### Wofi:
+- ✅ Размер и позиция окна
+- ✅ Цвета фона и текста
+- ✅ Шрифт и скругления
+- ✅ Наличие иконок
+
 ### Kitty:
 - ✅ Цветовая схема
 - ✅ Шрифт и размер
@@ -139,10 +145,13 @@ rice-generator/
 │   ├── separate_generator.py # Генератор с раздельными запросами
 │   ├── config_parser.py      # Парсер и генератор конфигов
 │   ├── config.py             # Настройки проекта
+│   ├── validator.py          # ИИ-валидация конфигов
 │   └── templates/
 │       ├── hyprland.conf     # Шаблон Hyprland
 │       ├── waybar.json       # Шаблон Waybar (config)
 │       ├── waybar_style.css  # Шаблон Waybar (style)
+│       ├── wofi_config       # Шаблон Wofi (config)
+│       ├── wofi_style.css    # Шаблон Wofi (style)
 │       └── kitty.conf        # Шаблон Kitty
 ├── .env.example              # Пример конфигурации
 ├── .gitignore
@@ -157,11 +166,12 @@ rice-generator/
    - Цветовую схему (цвета фона, текста, акцентов)
    - Шрифты и размеры
    - Отступы (gaps, padding)
-   - Расположение элементов (бар, иконки)
+   - Расположение элементов (бар, иконки, лаунчер)
    - Прозрачность и закругления
 3. **Генерация конфигов**:
    - **Hyprland** — модифицирует шаблон (заменяет gaps, цвета, opacity, rounding, shadow, blur)
    - **Waybar** — создаётся `config.json` и `style.css`
+   - **Wofi** — создаётся `config` и `style.css` для лаунчера
    - **Kitty** — создаётся `kitty.conf` с цветовой схемой
 4. **Создание скриптов** — генерируются `installer.sh` и `uninstaller.sh`
 
@@ -174,6 +184,8 @@ output/
 ├── hyprland.conf         # Конфиг Hyprland
 ├── waybar_config.json    # Конфиг Waybar
 ├── waybar_style.css      # Стили Waybar
+├── wofi_config           # Конфиг Wofi
+├── wofi_style.css        # Стили Wofi
 ├── kitty.conf            # Конфиг Kitty
 ├── color_scheme.json     # Информация о цветовой схеме
 ├── installer.sh          # Скрипт установки
@@ -190,7 +202,7 @@ chmod +x installer.sh
 
 Скрипт:
 - Создаст бэкап текущих конфигов
-- Установит новые конфиги
+- Установит новые конфиги (Hyprland, Waybar, Wofi, Kitty)
 - Перезапустит Waybar
 
 ## ↩️ Откат изменений
@@ -231,18 +243,6 @@ python -m rice_generator screenshot.png -H ~/.config/hypr/hyprland.conf -o ./out
 3. Создайте новый ключ
 4. Скопируйте и вставьте в `.env`
 
-## 🤖 Доступные модели
-
-```bash
-python -m rice_generator --list-models
-```
-
-| Модель | Провайдер | Рекомендуемая |
-|--------|-----------|---------------|
-| google/gemini-3-flash-preview | Google | ✅ Да |
-| google/gemini-2.0-flash-001 | Google | |
-| anthropic/claude-3.5-sonnet | Anthropic | |
-
 ## ⚙️ Переменные окружения
 
 | Переменная | Описание | По умолчанию |
@@ -250,7 +250,16 @@ python -m rice_generator --list-models
 | `OPENROUTER_API_KEY` | API ключ OpenRouter | (обязательно) |
 | `RICE_MODEL` | Модель для анализа | `google/gemini-3-flash-preview` |
 | `REQUEST_TIMEOUT` | Таймаут запроса (сек) | `120` |
-| `MAX_TOKENS` | Лимит токенов | `16384` |
+| `MAX_RETRIES` | Количество повторных попыток | `3` |
+| `MAX_TOKENS` | Общий лимит токенов | `16384` |
+| `HYPRLAND_MAX_TOKENS` | Лимит токенов для Hyprland | `8000` |
+| `WAYBAR_MAX_TOKENS` | Лимит токенов для Waybar | `6000` |
+| `KITTY_MAX_TOKENS` | Лимит токенов для Kitty | `3000` |
+| `VALIDATE_ANALYSIS_TOKENS` | Лимит токенов для анализа | `4000` |
+| `VALIDATE_FIX_TOKENS` | Лимит токенов для исправления | `8000` |
+| `REQUEST_DELAY` | Задержка между запросами (сек) | `0` |
+| `HTTP_REFERER` | Referer для OpenRouter API | `https://github.com/nullx137/Rice-generator` |
+| `APP_TITLE` | Заголовок приложения | `Rice Generator` |
 | `VERBOSE` | Подробный вывод | `false` |
 
 ## 📝 Примеры

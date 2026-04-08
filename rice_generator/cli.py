@@ -77,12 +77,6 @@ def main():
     )
 
     parser.add_argument(
-        "--list-models",
-        action="store_true",
-        help="Показать список доступных моделей",
-    )
-
-    parser.add_argument(
         "--validate",
         choices=["auto", "yes", "no"],
         default="auto",
@@ -103,19 +97,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Показ списка моделей
-    if args.list_models:
-        print("Доступные модели:")
-        print("-" * 60)
-        for model in settings.list_available_models():
-            recommended = " (рекомендуется)" if model.get("recommended") else ""
-            print(f"  • {model['id']}{recommended}")
-            print(f"    {model['name']} ({model['provider']})")
-        print("-" * 60)
-        print(f"\nТекущая модель: {settings.MODEL}")
-        print("\nИспользуйте --model для выбора модели")
-        return 0
 
     # Проверка наличия API ключа
     api_key = args.api_key or Path.cwd() / ".env"
