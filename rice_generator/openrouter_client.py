@@ -1,4 +1,4 @@
-"""Клиент для работы с OpenRouter API и мультимодальной моделью Gemini."""
+"""Клиент для работы с OpenRouter API / CometAPI и мультимодальной моделью Gemini."""
 
 import base64
 from pathlib import Path
@@ -9,37 +9,52 @@ import httpx
 from .config import settings
 
 
-class OpenRouterClient:
-    """Клиент для взаимодействия с OpenRouter API."""
+class APIClient:
+    """Унифицированный клиент для OpenRouter и CometAPI."""
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        provider: Optional[str] = None,
     ):
         """
         Инициализация клиента.
 
         Args:
-            api_key: API ключ OpenRouter. Если не указан, берётся из конфига.
+            api_key: API ключ. Если не указан, берётся из конфига.
             model: Модель для использования. Если не указана, берётся из конфига.
+            provider: Провайдер API (openrouter или cometapi).
         """
-        self.api_key = api_key or settings.OPENROUTER_API_KEY
+        self.provider = (provider or settings.API_PROVIDER).lower()
+
+        if self.provider == "cometapi":
+            self.api_key = api_key or settings.COMETAPI_API_KEY
+            self.base_url = settings.COMETAPI_BASE_URL
+        else:
+            self.api_key = api_key or settings.OPENROUTER_API_KEY
+            self.base_url = settings.OPENROUTER_BASE_URL
+
         if not self.api_key:
             raise ValueError(
-                "API ключ не указан. Передайте api_key или установите OPENROUTER_API_KEY"
+                f"API ключ не указан. Передайте api_key или установите "
+                f"{'COMETAPI' if self.provider == 'cometapi' else 'OPENROUTER'}_API_KEY"
             )
 
         self.model = model or settings.MODEL
 
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        if self.provider == "openrouter":
+            headers["HTTP-Referer"] = settings.HTTP_REFERER
+            headers["X-Title"] = settings.APP_TITLE
+
         self.client = httpx.Client(
-            base_url=settings.OPENROUTER_BASE_URL,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": settings.HTTP_REFERER,
-                "X-Title": settings.APP_TITLE,
-            },
+            base_url=self.base_url,
+            headers=headers,
             timeout=settings.REQUEST_TIMEOUT,
         )
 
@@ -78,9 +93,7 @@ class OpenRouterClient:
         """
         image_base64 = self._encode_image(screenshot_path)
 
-        prompt = self._build_prompt(
-            hyprland_template, waybar_template, kitty_template
-        )
+        prompt = self._build_prompt(hyprland_template, waybar_template, kitty_template)
 
         payload = {
             "model": self.model,
@@ -151,9 +164,7 @@ class OpenRouterClient:
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
-    def _build_prompt(
-        self, hyprland: str, waybar: str, kitty: str
-    ) -> str:
+    def _build_prompt(self, hyprland: str, waybar: str, kitty: str) -> str:
         """
         Формирует промпт для нейросети.
 
@@ -241,3 +252,7 @@ class OpenRouterClient:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+
+# Alias for backwards compatibility
+OpenRouterClient = APIClient

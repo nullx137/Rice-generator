@@ -13,14 +13,21 @@ load_dotenv()
 class Settings:
     """Настройки приложения."""
 
+    # === API Provider ===
+    API_PROVIDER: str = os.getenv("API_PROVIDER", "openrouter").lower()
+
     # === OpenRouter API ===
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
 
-    # === Модель ===
-    MODEL: str = os.getenv(
-        "RICE_MODEL", "google/gemini-3-flash-preview"
+    # === CometAPI ===
+    COMETAPI_API_KEY: str = os.getenv("COMETAPI_API_KEY", "")
+    COMETAPI_BASE_URL: str = os.getenv(
+        "COMETAPI_BASE_URL", "https://api.cometapi.com/v1"
     )
+
+    # === Модель ===
+    MODEL: str = os.getenv("RICE_MODEL", "google/gemini-3-flash-preview")
 
     # === Таймауты ===
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "120"))
@@ -48,9 +55,7 @@ class Settings:
 
     # === Прочее ===
     # HTTP Referer для OpenRouter (требование API)
-    HTTP_REFERER: str = os.getenv(
-        "HTTP_REFERER", "https://github.com/rice-generator"
-    )
+    HTTP_REFERER: str = os.getenv("HTTP_REFERER", "https://github.com/rice-generator")
     APP_TITLE: str = os.getenv("APP_TITLE", "Rice Generator")
 
     # Включить подробное логирование
@@ -64,11 +69,18 @@ class Settings:
         Raises:
             ValueError: Если API ключ не указан.
         """
-        if not cls.OPENROUTER_API_KEY:
-            raise ValueError(
-                "OPENROUTER_API_KEY не указан. "
-                "Установите переменную окружения или создайте файл .env"
-            )
+        if cls.API_PROVIDER == "cometapi":
+            if not cls.COMETAPI_API_KEY:
+                raise ValueError(
+                    "COMETAPI_API_KEY не указан. "
+                    "Установите переменную окружения или создайте файл .env"
+                )
+        else:
+            if not cls.OPENROUTER_API_KEY:
+                raise ValueError(
+                    "OPENROUTER_API_KEY не указан. "
+                    "Установите переменную окружения или создайте файл .env"
+                )
 
 
 # Глобальный экземпляр настроек

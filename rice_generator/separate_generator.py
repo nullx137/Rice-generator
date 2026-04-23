@@ -17,40 +17,22 @@ class SeparateGenerator:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        provider: Optional[str] = None,
     ):
         """
         Инициализация генератора.
 
         Args:
-            api_key: API ключ OpenRouter.
+            api_key: API ключ.
             model: Модель для анализа.
+            provider: API провайдер (openrouter или cometapi).
         """
-        self.api_key = api_key or settings.OPENROUTER_API_KEY
+        self.provider = provider or settings.API_PROVIDER
+        if self.provider == "cometapi":
+            self.api_key = api_key or settings.COMETAPI_API_KEY
+        else:
+            self.api_key = api_key or settings.OPENROUTER_API_KEY
         self.model = model or settings.MODEL
-
-    def analyze_colors(
-        self,
-        screenshot_path: str | Path,
-    ) -> dict:
-        """
-        Анализирует цвета со скриншота для ручной настройки Hyprland.
-
-        Args:
-            screenshot_path: Путь к скриншоту.
-
-        Returns:
-            Словарь с распознанными цветами и параметрами.
-        """
-        prompt = self._build_color_analysis_prompt()
-
-        with OpenRouterClient(self.api_key, self.model) as client:
-            response = client.analyze_image_with_prompt(
-                screenshot_path=screenshot_path,
-                prompt=prompt,
-                max_tokens=2000,
-            )
-
-        return self._extract_color_json(response)
 
     def generate_hyprland(
         self,
@@ -69,7 +51,7 @@ class SeparateGenerator:
         """
         prompt = self._build_hyprland_prompt(template)
 
-        with OpenRouterClient(self.api_key, self.model) as client:
+        with OpenRouterClient(self.api_key, self.model, self.provider) as client:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
@@ -97,7 +79,7 @@ class SeparateGenerator:
         """
         prompt = self._build_waybar_prompt(config_template, style_template)
 
-        with OpenRouterClient(self.api_key, self.model) as client:
+        with OpenRouterClient(self.api_key, self.model, self.provider) as client:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
@@ -128,7 +110,7 @@ class SeparateGenerator:
         """
         prompt = self._build_wofi_prompt(config_template, style_template)
 
-        with OpenRouterClient(self.api_key, self.model) as client:
+        with OpenRouterClient(self.api_key, self.model, self.provider) as client:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
@@ -157,7 +139,7 @@ class SeparateGenerator:
         """
         prompt = self._build_kitty_prompt(template)
 
-        with OpenRouterClient(self.api_key, self.model) as client:
+        with OpenRouterClient(self.api_key, self.model, self.provider) as client:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
@@ -232,9 +214,7 @@ class SeparateGenerator:
 - Заменить border_size
 """
 
-    def _build_waybar_prompt(
-        self, config_template: str, style_template: str
-    ) -> str:
+    def _build_waybar_prompt(self, config_template: str, style_template: str) -> str:
         """Создаёт промпт для Waybar."""
         return f"""Ты эксперт по Waybar. Проанализируй скриншот и создай два файла.
 
@@ -367,9 +347,7 @@ color1 #f7768e
 ```
 """
 
-    def _build_wofi_prompt(
-        self, config_template: str, style_template: str
-    ) -> str:
+    def _build_wofi_prompt(self, config_template: str, style_template: str) -> str:
         """Создаёт промпт для Wofi."""
         return f"""Ты эксперт по Wofi (launcher для Wayland). Проанализируй скриншот и создай два файла.
 
@@ -448,9 +426,7 @@ window {{
             return match.group(1).strip()
         return text.strip()
 
-    def _extract_code_block(
-        self, text: str, lang: Optional[str] = None
-    ) -> str:
+    def _extract_code_block(self, text: str, lang: Optional[str] = None) -> str:
         """Извлекает код из markdown блока."""
         patterns = []
         if lang:
@@ -480,7 +456,7 @@ window {{
                 return json.loads(json_str)
             except json.JSONDecodeError:
                 pass
-        
+
         # Если не найдено, пробуем найти JSON без markdown блока
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
@@ -488,7 +464,7 @@ window {{
                 return json.loads(match.group(0))
             except json.JSONDecodeError:
                 pass
-        
+
         # Возвращаем пустой словарь с подсказками
         return {
             "error": "Не удалось распознать цвета",
@@ -501,7 +477,7 @@ window {{
                 "active_opacity": 1.0,
                 "inactive_opacity": 0.9,
                 "rounding": 10,
-            }
+            },
         }
 
     def _extract_json_config(self, text: str) -> str:

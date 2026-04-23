@@ -8,14 +8,14 @@
 - 🎨 **Генерация конфигов** — создание конфигурационных файлов на основе анализа
 - 🔧 **Installer** — автоматическая установка конфигов с бэкапом
 - ↩️ **Uninstaller** — откат изменений и восстановление из бэкапа
-- 🤖 **AI-powered** — использует Google Gemini 3 через OpenRouter
+- 🤖 **AI-powered** — использует Google Gemini через OpenRouter или CometAPI
 - 📝 **Свой конфиг Hyprland** — используйте свой конфиг как шаблон
 - 🚀 **Wofi Launcher** — генерация конфига для лаунчера приложений
 
 ## 📋 Требования
 
 - Python 3.10+
-- API ключ OpenRouter
+- API ключ (OpenRouter или CometAPI)
 - Установленные Hyprland, Waybar, Wofi, Kitty (для применения конфигов)
 
 ## 🚀 Быстрый старт
@@ -42,13 +42,19 @@ cp .env.example .env
 nano .env  # Вставьте свой API ключ
 ```
 
-Получите API ключ на [openrouter.ai](https://openrouter.ai/)
+**Получение API ключа:**
+
+- **OpenRouter:** [openrouter.ai](https://openrouter.ai/)
+- **CometAPI:** [cometapi.com](https://cometapi.com/)
 
 ### 4. Использование
 
 ```bash
-# Базовое использование
+# Базовое использование (OpenRouter)
 python -m rice_generator screenshot.png -o ./my-rice
+
+# Использовать CometAPI
+python -m rice_generator screenshot.png --provider cometapi -o ./my-rice
 
 # Использовать свой конфиг Hyprland как шаблон
 python -m rice_generator screenshot.png -H ~/.config/hypr/hyprland.conf -o ./my-rice
@@ -60,7 +66,7 @@ python -m rice_generator screenshot.png --api-key your_key -m google/gemini-3-fl
 ## 📖 Команды CLI
 
 ```
-usage: rice-generator [-h] [-o OUTPUT] [--api-key API_KEY] [-m MODEL] [-t TEMPLATES] [-H HYPRLAND_CONFIG] [--validate MODE] [-v] [--version]
+usage: rice-generator [-h] [-o OUTPUT] [--api-key API_KEY] [--provider PROVIDER] [-m MODEL] [-t TEMPLATES] [-H HYPRLAND_CONFIG] [--validate MODE] [-v] [--version]
 
 positional arguments:
   screenshot            Путь к скриншоту для анализа
@@ -69,7 +75,8 @@ options:
   -h, --help            Показать справку
   -o OUTPUT, --output OUTPUT
                         Директория для сохранения конфигов (по умолчанию: ./generated_configs)
-  --api-key API_KEY     API ключ OpenRouter
+  --api-key API_KEY     API ключ (для OpenRouter или CometAPI)
+  --provider PROVIDER    API провайдер: openrouter или cometapi (по умолчанию: openrouter)
   -m MODEL, --model MODEL
                         Модель для анализа (по умолчанию: google/gemini-3-flash-preview)
   -t TEMPLATES, --templates TEMPLATES
@@ -238,16 +245,26 @@ python -m rice_generator screenshot.png -H ~/.config/hypr/hyprland.conf -o ./out
 
 ## 🔑 Получение API ключа
 
+### OpenRouter
 1. Зарегистрируйтесь на [openrouter.ai](https://openrouter.ai/)
 2. Перейдите в раздел API Keys
 3. Создайте новый ключ
 4. Скопируйте и вставьте в `.env`
 
+### CometAPI
+1. Зарегистрируйтесь на [cometapi.com](https://cometapi.com/)
+2. Перейдите в раздел API Keys
+3. Создайте новый ключ
+4. В `.env` укажите `API_PROVIDER=cometapi` и `COMETAPI_API_KEY=ваш_ключ`
+
 ## ⚙️ Переменные окружения
 
 | Переменная | Описание | По умолчанию |
 |------------|----------|--------------|
-| `OPENROUTER_API_KEY` | API ключ OpenRouter | (обязательно) |
+| `API_PROVIDER` | Провайдер API: `openrouter` или `cometapi` | `openrouter` |
+| `OPENROUTER_API_KEY` | API ключ OpenRouter | (обязательно для openrouter) |
+| `COMETAPI_API_KEY` | API ключ CometAPI | (обязательно для cometapi) |
+| `COMETAPI_BASE_URL` | URL CometAPI | `https://api.cometapi.com/v1` |
 | `RICE_MODEL` | Модель для анализа | `google/gemini-3-flash-preview` |
 | `REQUEST_TIMEOUT` | Таймаут запроса (сек) | `120` |
 | `MAX_RETRIES` | Количество повторных попыток | `3` |
@@ -284,6 +301,18 @@ python -m rice_generator screenshot.png \
 python -m rice_generator screenshot.png \
     -H ~/.config/hypr/hyprland.conf \
     -v
+```
+
+### Использование CometAPI
+
+```bash
+# Через аргументы
+python -m rice_generator screenshot.png --provider cometapi --api-key YOUR_KEY -o ./output
+
+# Через переменные окружения
+export API_PROVIDER=cometapi
+export COMETAPI_API_KEY=your_key
+python -m rice_generator screenshot.png -o ./output
 ```
 
 ## ⚠️ Ограничения

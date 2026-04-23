@@ -101,22 +101,25 @@ class RiceGenerator:
         model: str | None = None,
         separate: bool = True,
         hyprland_config: str | Path | None = None,
+        provider: str | None = None,
     ):
         """
         Инициализация генератора.
 
         Args:
-            api_key: API ключ OpenRouter.
+            api_key: API ключ.
             templates_dir: Директория с шаблонами.
             model: Модель для анализа (по умолчанию из конфига).
             separate: Использовать раздельные запросы (рекомендуется).
             hyprland_config: Путь к пользовательскому hyprland.conf (по умолчанию: встроенный шаблон).
+            provider: API провайдер (openrouter или cometapi).
         """
         self.api_key = api_key
         self.templates_dir = Path(templates_dir) if templates_dir else None
         self.model = model
         self.separate = separate
         self.hyprland_config = Path(hyprland_config) if hyprland_config else None
+        self.provider = provider or settings.API_PROVIDER
 
         if self.templates_dir is None:
             self.templates_dir = Path(__file__).parent / "templates"
@@ -162,7 +165,7 @@ class RiceGenerator:
             print("=" * 40)
 
             # Используем раздельные запросы
-            generator = SeparateGenerator(self.api_key, self.model)
+            generator = SeparateGenerator(self.api_key, self.model, self.provider)
 
             # 1. Генерация Hyprland
             spinner.start("Генерация Hyprland...", BLUE)
@@ -255,8 +258,8 @@ class RiceGenerator:
             # Загрузка шаблона Hyprland для старого метода
             hyprland_template = (self.templates_dir / "hyprland.conf").read_text()
 
-            # Анализ скриншота через OpenRouter (старый метод)
-            with OpenRouterClient(self.api_key, self.model) as client:
+            # Анализ скриншота через API (старый метод)
+            with OpenRouterClient(self.api_key, self.model, self.provider) as client:
                 response = client.analyze_screenshot(
                     screenshot_path=screenshot_path,
                     hyprland_template=hyprland_template,

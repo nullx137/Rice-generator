@@ -22,9 +22,12 @@ def main():
   %(prog)s screenshot.png -o ./my-rice --templates ./custom-templates
   %(prog)s screenshot.png --model google/gemini-2.0-flash-001
   %(prog)s screenshot.png -H ~/.config/hypr/hyprland.conf  # использовать свой конфиг
+  %(prog)s screenshot.png --provider cometapi --api-key your_key  # использовать CometAPI
 
 Переменные окружения:
-  OPENROUTER_API_KEY    API ключ для OpenRouter (обязательно)
+  API_PROVIDER           Провайдер API: openrouter или cometapi (по умолчанию: openrouter)
+  OPENROUTER_API_KEY     API ключ для OpenRouter
+  COMETAPI_API_KEY     API ключ для CometAPI
   RICE_MODEL            Модель для анализа (по умолчанию: google/gemini-2.0-flash-exp:free)
   REQUEST_TIMEOUT       Таймаут запроса в секундах (по умолчанию: 120)
   MAX_TOKENS            Максимум токенов в ответе (по умолчанию: 4096)
@@ -49,7 +52,15 @@ def main():
         "--api-key",
         type=str,
         default=None,
-        help="API ключ OpenRouter (можно через OPENROUTER_API_KEY)",
+        help="API ключ (для OpenRouter или CometAPI)",
+    )
+
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openrouter", "cometapi"],
+        default=None,
+        help="API провайдер (по умолчанию: openrouter)",
     )
 
     parser.add_argument(
@@ -104,7 +115,9 @@ def main():
         api_key = None
 
     try:
+        provider = args.provider or settings.API_PROVIDER
         print("🚀 Rice Generator v0.1.0")
+        print(f"📡 API: {provider}")
         print("=" * 40)
 
         generator = RiceGenerator(
@@ -112,6 +125,7 @@ def main():
             templates_dir=args.templates,
             model=args.model,
             hyprland_config=args.hyprland_config,
+            provider=provider,
         )
 
         paths = generator.generate(
@@ -124,6 +138,7 @@ def main():
         if validate_mode == "yes":
             print("\n🔍 Запуск ИИ-проверки конфигов...")
             from .validator import AIValidator
+
             ai_validator = AIValidator(api_key=args.api_key, model=args.model)
             results = ai_validator.validate_and_fix(
                 screenshot_path=args.screenshot,
