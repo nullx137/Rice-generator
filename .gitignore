@@ -38,6 +38,11 @@ generated_configs/
 *.png
 !README.md
 
+# Test files
+my-rice/
+rice.jpg
+screenshot.png
+
 # Cache
 .pytest_cache/
 .mypy_cache/

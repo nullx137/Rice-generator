@@ -16,15 +16,21 @@ class AIValidator:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        provider: Optional[str] = None,
     ):
         """
         Инициализация валидатора.
 
         Args:
-            api_key: API ключ OpenRouter.
+            api_key: API ключ.
             model: Модель для анализа.
+            provider: API провайдер (openrouter или cometapi).
         """
-        self.api_key = api_key or settings.OPENROUTER_API_KEY
+        self.provider = provider or settings.API_PROVIDER
+        if self.provider == "cometapi":
+            self.api_key = api_key or settings.COMETAPI_API_KEY
+        else:
+            self.api_key = api_key or settings.OPENROUTER_API_KEY
         self.model = model or settings.MODEL
 
     def validate_and_fix(
@@ -86,7 +92,9 @@ class AIValidator:
                 if filepath:
                     # Конвертируем dict в строку если нужно
                     if isinstance(new_content, dict):
-                        new_content = json.dumps(new_content, indent=2, ensure_ascii=False)
+                        new_content = json.dumps(
+                            new_content, indent=2, ensure_ascii=False
+                        )
 
                     filepath.write_text(new_content, encoding="utf-8")
                     print(f"✅ Исправлен: {file_key}")
@@ -130,7 +138,7 @@ class AIValidator:
         """
         prompt = self._build_analysis_prompt(configs)
 
-        with OpenRouterClient(self.api_key, self.model) as client:
+        with OpenRouterClient(self.api_key, self.model, self.provider) as client:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
@@ -154,7 +162,7 @@ class AIValidator:
         """
         prompt = self._build_fix_prompt(configs, issues)
 
-        with OpenRouterClient(self.api_key, self.model) as client:
+        with OpenRouterClient(self.api_key, self.model, self.provider) as client:
             response = client.analyze_image_with_prompt(
                 screenshot_path=screenshot_path,
                 prompt=prompt,
@@ -251,9 +259,7 @@ class AIValidator:
 ```
 """
 
-    def _build_fix_prompt(
-        self, configs: dict[str, str], issues: list[dict]
-    ) -> str:
+    def _build_fix_prompt(self, configs: dict[str, str], issues: list[dict]) -> str:
         """Создаёт промпт для исправления конфигов."""
         configs_text = "\n\n".join(
             f"### {key} ###\n{content}" for key, content in configs.items()

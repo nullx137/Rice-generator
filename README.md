@@ -66,7 +66,7 @@ python -m rice_generator screenshot.png --api-key your_key -m google/gemini-3-fl
 ## 📖 Команды CLI
 
 ```
-usage: rice-generator [-h] [-o OUTPUT] [--api-key API_KEY] [--provider PROVIDER] [-m MODEL] [-t TEMPLATES] [-H HYPRLAND_CONFIG] [--validate MODE] [-v] [--version]
+usage: rice-generator [-h] [-o OUTPUT] [--api-key API_KEY] [--provider PROVIDER] [-m MODEL] [-t TEMPLATES] [-H HYPRLAND_CONFIG] [-v] [--version]
 
 positional arguments:
   screenshot            Путь к скриншоту для анализа
@@ -83,32 +83,8 @@ options:
                         Директория с шаблонами
   -H HYPRLAND_CONFIG, --hyprland-config HYPRLAND_CONFIG
                         Путь к вашему hyprland.conf (вместо встроенного шаблона)
-  --validate MODE       Режим проверки: auto, yes, no
   -v, --verbose         Подробный вывод
   --version             Версия
-```
-
-## 🔍 Режимы проверки
-
-После генерации конфигов ИИ может проверить их на соответствие скриншоту:
-
-| Режим | Описание |
-|-------|----------|
-| `auto` | Без проверки (быстрая генерация, по умолчанию) |
-| `yes` | ИИ-проверка + авто-исправление расхождений |
-| `no` | Без проверки |
-
-**Примеры:**
-
-```bash
-# Обычная генерация (без проверки)
-python -m rice_generator screenshot.png -o ./output
-
-# С ИИ-проверкой и исправлением
-python -m rice_generator screenshot.png -o ./output --validate yes
-
-# Без проверки
-python -m rice_generator screenshot.png -o ./output --validate no
 ```
 
 **Что проверяет ИИ:**
